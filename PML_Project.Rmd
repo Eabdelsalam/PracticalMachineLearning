@@ -1,0 +1,79 @@
+---
+title: "Predicting how well people do weighting lift activity"
+author: "Eslam M. Abdel-Salam"
+date: "June 17, 2015"
+output: html_document
+---
+
+## Executive Summary
+
+This project aims to predict how well some people make their bar-lift exercise. To achieve this object we used a data set offered by the *Practical Machine Learning* course, which based on the original (Weight Lifting Exercise Dataset which could be accessed [here](http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises)). There were two data sets; training and testing. The training data set was used to fit the appropriate  model. To minimize the out of sample error, the training data sets was split in to two sets (10% for training and 90% for testing). The fitted model had 95% Accuracy. After applying the fitted model on the 20 test cases offered through the course, it could predicted all the cases right.
+
+## Data Processing
+
+In this project, the *caret* R package was used. The training data loaded into a raw data frame as it is offered through the course website.
+
+```{r, cache=TRUE}
+## loading required R packages
+suppressPackageStartupMessages(library(caret))
+
+## read the training data set
+raw_data <- as.data.frame(read.csv("pml-training.csv"))
+```
+
+Then, the data was processed to remove any variables had any NA value, as it will be not of significant importance to the model. In addition, any variable has an empty cell or has an unknown format was also removed to avoid any errors in the model. The resulted data frame consisted of 53 variables including the variable to be predicted (classe). Some plotting were used to explore some of variables will be included in the fitted model (see Appendix 1).
+
+```{r}
+## remove all variables witrh at least one NA value
+data <- raw_data[sapply(raw_data, function(raw_data) !any(is.na(raw_data)))]
+
+## remove factor variables and adding the classe variable
+## to be predicted again
+data <- data[sapply(data, function(data) !(is.factor(data)))]
+data <- data.frame(data, raw_data$classe)
+data <- data[, 5:57]
+names(data)[53] = "classe"
+```
+
+The provided training data set was split into two groups (10% for training the model and 90% for testing the fitted model). This process is known as cross-validation. It is important to use cross validation on the training data set to ensure that out of sample error is as low as possible, before applying the fitted model on the final data set. Cross-validation could be done in many ways, in this project we split random 10% cases of the original training dataset to be used for fitting the model. The rest 90% used to cross-validate the fitted model.
+
+```{r}
+## splitting the data to train and test sets
+set.seed(112256)
+inTrain <- createDataPartition(y=data$classe, p = 0.1, list=FALSE)
+
+training <- data[inTrain,]
+testing <- data[-inTrain,]
+```
+
+## Fitting the Model
+
+In the fitted model, we used 52 variable to predict the *classe* variable which represent the quality of doing weight lifting exercise. After cross-validate the model, it shows 95% Accuracy.
+
+```{r, cache=TRUE}
+## fitting the model
+modelFit <- train(classe ~ ., data=training, method="rf")
+
+## validating the fitted model
+con_mat <- confusionMatrix(testing$classe, predict(modelFit, testing))
+con_mat$overall
+```
+
+Finally, after cross-validate the fitted model and make sure that it has a high reliable accuracy. It was applied to the provided 20 test cases. The model succeeded to predict all the cases right, according to the grading system on the course website.
+
+```{r}
+## apply the fitted model to the test set data
+test_data <- read.csv("pml-testing.csv")
+predictions <- predict(modelFit, test_data)
+predictions
+```
+***
+# Appendix 1
+
+### Some plots to explore the variables used in the fitted model.
+
+1. Histogram of total acceleration of arm
+
+```{r}
+hist(data$total_accel_arm, xlab = "Total Acceleration of Arm", main = "")
+```
